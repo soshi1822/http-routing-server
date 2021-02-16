@@ -15,7 +15,7 @@ type Methods =
   | 'PATCH'
   | 'ALL'
   | 'Router';
-type RequestData = { routeUrl?: string, params: { [key: string]: string }, query: URLSearchParams, json: <T>() => T, text: () => string };
+type RequestData = { routeUrl?: string, params: { [key: string]: string }, query: URLSearchParams, json: <T>() => T, text: () => string, cookies: Map<string, string> };
 type ResponseData = { json: (data: object, isEnd?: boolean) => void };
 type Callback = (req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) => void;
 type Option = { params?: { [key: string]: RegExp } };
@@ -179,6 +179,7 @@ export class Router extends EventEmitter {
 
       req.params = { ...req.params, ...reqAddOption?.params };
       req.query = reqAddOption.url.searchParams;
+      req.cookies = new Map(req.headers.cookie?.split(/;\s+?/).map(v => v.split('=').map(t => t.trim())) as [string, string][] ?? []);
 
       if (!req.text && !req.json) {
         res.json = (data, isEnd) => responseJson(res, data, isEnd);
