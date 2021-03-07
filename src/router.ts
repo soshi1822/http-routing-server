@@ -2,24 +2,17 @@ import { EventEmitter } from 'events';
 import { IncomingMessage, ServerResponse } from 'http';
 import { URL } from 'url';
 import { HttpStatusError } from './error';
+import {
+  HttpMethods,
+  IncomingMessageData,
+  RequestCallback,
+  RequestData,
+  RequestOption,
+  ResponseData,
+  RouterWaits,
+  ServerResponseData
+} from './type';
 
-type Methods =
-  'GET'
-  | 'HEAD'
-  | 'POST'
-  | 'PUT'
-  | 'DELETE'
-  | 'CONNECT'
-  | 'OPTIONS'
-  | 'TRACE'
-  | 'PATCH'
-  | 'ALL'
-  | 'Router';
-type RequestData = { routeUrl?: string, params: { [key: string]: string }, query: URLSearchParams, json: <T>() => T, text: () => string, cookies: Map<string, string> };
-type ResponseData = { json: (data: object, isEnd?: boolean) => void };
-type Callback = (req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) => void;
-type Option = { params?: { [key: string]: RegExp } };
-type RouterWaits = { method: Methods, match: string | RegExp, callback: Callback, option: Option };
 
 export class Router extends EventEmitter {
   private waits = new Set<RouterWaits>();
@@ -48,58 +41,58 @@ export class Router extends EventEmitter {
     return super.on(event, listener);
   }
 
-  get(match: string | RegExp, callback: Callback, option?: Option) {
+  get(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('GET', match, callback, option);
   }
 
-  head(match: string | RegExp, callback: Callback, option?: Option) {
+  head(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('HEAD', match, callback, option);
   }
 
-  post(match: string | RegExp, callback: Callback, option?: Option) {
+  post(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('POST', match, callback, option);
   }
 
-  put(match: string | RegExp, callback: Callback, option?: Option) {
+  put(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('PUT', match, callback, option);
   }
 
-  delete(match: string | RegExp, callback: Callback, option?: Option) {
+  delete(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('DELETE', match, callback, option);
   }
 
-  connect(match: string | RegExp, callback: Callback, option?: Option) {
+  connect(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('CONNECT', match, callback, option);
   }
 
-  options(match: string | RegExp, callback: Callback, option?: Option) {
+  options(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('OPTIONS', match, callback, option);
   }
 
-  trace(match: string | RegExp, callback: Callback, option?: Option) {
+  trace(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('TRACE', match, callback, option);
   }
 
-  patch(match: string | RegExp, callback: Callback, option?: Option) {
+  patch(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     return this.request('PATCH', match, callback, option);
   }
 
-  catch(callback: (error: Error, req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) => void) {
+  catch(callback: (error: Error, req: IncomingMessageData, res: ServerResponseData) => void) {
     this.on('error', callback);
   }
 
-  childRouter(match: string | RegExp, router: Router, option?: Option) {
+  childRouter(match: string | RegExp, router: Router, option?: RequestOption) {
     router.on('error.parent', (error, req, res) => this.onError(error, req, res));
 
     return this.request('Router', match, (req, res) => router.onEvent(req, res), option);
   }
 
-  protected async onEvent(req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) {
+  protected async onEvent(req: IncomingMessageData, res: ServerResponseData) {
     this.requestRun(req, res)
       .catch(error => this.onError(error, req, res));
   }
 
-  private async requestRun(req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) {
+  private async requestRun(req: IncomingMessageData, res: ServerResponseData) {
     const url = new URL(req.routeUrl ?? req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
     const emits: any[] = [];
 
@@ -154,7 +147,7 @@ export class Router extends EventEmitter {
     }
   }
 
-  private request(method: Methods, match: string | RegExp, callback: Callback, option?: Option) {
+  private request(method: HttpMethods, match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
     option ??= {};
 
     if (typeof match === 'string') {
@@ -174,7 +167,7 @@ export class Router extends EventEmitter {
     this.waits.add({ method, match, callback, option });
   }
 
-  private async emitRequest(callback: Callback, req: IncomingMessage & RequestData, res: ServerResponse & ResponseData, reqAddOption: { params?: { [key: string]: string }, url: URL }) {
+  private async emitRequest(callback: RequestCallback, req: IncomingMessageData, res: ServerResponseData, reqAddOption: { params?: { [key: string]: string }, url: URL }) {
     return new Promise((resolve, reject) => {
 
       req.params = { ...req.params, ...reqAddOption?.params };
@@ -201,7 +194,7 @@ export class Router extends EventEmitter {
     });
   }
 
-  private onError(error: Error, req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) {
+  private onError(error: Error, req: IncomingMessageData, res: ServerResponseData) {
     this.listenerCount('error') > 0 ? this.emit('error', error, req, res) : this.emit('error.parent', error, req, res);
   }
 }
@@ -214,7 +207,7 @@ function counter(str: string, seq: string | RegExp) {
   return str.split(seq).length - 1;
 }
 
-function responseJson(res: ServerResponse & ResponseData, data: object, isEnd = true) {
+function responseJson(res: ServerResponseData, data: object, isEnd = true) {
   res.write(JSON.stringify(data));
 
   if (isEnd) {
