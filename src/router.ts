@@ -208,6 +208,7 @@ function counter(str: string, seq: string | RegExp) {
 }
 
 function responseJson(res: ServerResponseData, data: object, isEnd = true) {
+  res.setHeader('content-type', 'application/json');
   res.write(JSON.stringify(data));
 
   if (isEnd) {
