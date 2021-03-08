@@ -107,10 +107,10 @@ export class Router extends EventEmitter {
 
       if (method === 'Router') {
         const hierarchy = (typeof match === 'string' ? counter(match, '/') : counter(match.toString(), '\\/')) + 1;
-        const paths = urlTmp.pathname?.split('/');
+        const paths = urlTmp.pathname.split('/');
 
         urlTmp.pathname = [...paths].splice(0, hierarchy).join('/')!;
-        req.routeUrl = [...paths].splice(hierarchy).join('/')!;
+        req.routeUrl = [...paths].splice(hierarchy).join('/')! + url.search;
       }
 
       if (typeof match === 'string') {
