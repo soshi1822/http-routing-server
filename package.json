@@ -1,11 +1,11 @@
 {
   "name": "http-routing-server",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
-    "prepare": "npx typescript"
+    "prepare": "npx tsc"
   },
   "keywords": [],
   "author": "",
