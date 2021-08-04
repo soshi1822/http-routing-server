@@ -1,14 +1,11 @@
 import { EventEmitter } from 'events';
-import { IncomingMessage, ServerResponse } from 'http';
 import { URL } from 'url';
 import { HttpStatusError } from './error';
 import {
   HttpMethods,
   IncomingMessageData,
   RequestCallback,
-  RequestData,
   RequestOption,
-  ResponseData,
   RouterWaits,
   ServerResponseData
 } from './type';
@@ -21,22 +18,22 @@ export class Router extends EventEmitter {
     super();
   }
 
-  on(event: string, listener: (...args: any[]) => void): this;
 
   /**
    * @internal
    * @param event
    * @param listener
    */
-  on(event: 'error', listener: (error: Error, req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) => void): this;
+  on(event: 'error', listener: (error: Error, req: IncomingMessageData, res: ServerResponseData) => void): this;
 
   /**
    * @internal
    * @param event
    * @param listener
    */
-  on(event: 'error.parent', listener: (error: Error, req: IncomingMessage & RequestData, res: ServerResponse & ResponseData) => void): this;
+  on(event: 'error.parent', listener: (error: Error, req: IncomingMessageData, res: ServerResponseData) => void): this;
 
+  on(event: 'response', listener: (req: IncomingMessageData, res: ServerResponseData) => void): this;
   on(event: string, listener: (...args: any[]) => void): this {
     return super.on(event, listener);
   }
@@ -88,6 +85,14 @@ export class Router extends EventEmitter {
   }
 
   protected async onEvent(req: IncomingMessageData, res: ServerResponseData) {
+    if (!res._end) {
+      res._end = res.end;
+      res.end = (...args: [any?, any?, any?]) => {
+        res._end(...args);
+        this.emit('response', req, res);
+      };
+    }
+
     this.requestRun(req, res)
       .catch(error => this.onError(error, req, res));
   }

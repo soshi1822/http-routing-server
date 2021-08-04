@@ -1,5 +1,9 @@
 import { IncomingMessage, ServerResponse } from 'http';
 
+type End = ((cb?: () => void) => void) |
+  ((chunk: any, cb?: () => void) => void) |
+  ((chunk: any, encoding: BufferEncoding, cb?: () => void) => void)
+
 export type HttpMethods =
   'GET'
   | 'HEAD'
@@ -13,7 +17,7 @@ export type HttpMethods =
   | 'ALL'
   | 'Router';
 export type RequestData = { routeUrl?: string, params: { [key: string]: string }, query: URLSearchParams, json: <T>() => T, text: () => string, cookies: Map<string, string> };
-export type ResponseData = { json: (data: object, isEnd?: boolean) => void };
+export type ResponseData = { json: (data: object, isEnd?: boolean) => void; _end: End; };
 export type IncomingMessageData = IncomingMessage & RequestData;
 export type ServerResponseData = ServerResponse & ResponseData;
 
