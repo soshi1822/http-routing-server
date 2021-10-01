@@ -80,6 +80,7 @@ export class Router extends EventEmitter {
 
   childRouter(match: string | RegExp, router: Router, option?: RequestOption) {
     router.on('error.parent', (error, req, res) => this.onError(error, req, res));
+    router.on('response', (req, res) => this.emit('response', req, res));
 
     return this.request('Router', match, (req, res) => router.onEvent(req, res), option);
   }
