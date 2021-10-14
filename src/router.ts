@@ -86,13 +86,11 @@ export class Router extends EventEmitter {
   }
 
   protected async onEvent(req: IncomingMessageData, res: ServerResponseData) {
-    if (!res._end) {
-      res._end = res.end;
-      res.end = (...args: [any?, any?, any?]) => {
-        res._end(...args);
-        this.emit('response', req, res);
-      };
-    }
+    res._end ??= res.end;
+    res.end = (...args: [any?, any?, any?]) => {
+      res._end(...args);
+      this.emit('response', req, res);
+    };
 
     this.requestRun(req, res)
       .catch(error => this.onError(error, req, res));
