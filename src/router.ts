@@ -90,6 +90,7 @@ export class Router extends EventEmitter {
     res.end = (...args: [any?, any?, any?]) => {
       res._end(...args);
       this.emit('response', req, res);
+      return res;
     };
 
     this.requestRun(req, res)
@@ -216,6 +217,6 @@ function responseJson(res: ServerResponseData, data: object, isEnd = true) {
   res.write(JSON.stringify(data));
 
   if (isEnd) {
-    return res.end();
+    res.end();
   }
 }
