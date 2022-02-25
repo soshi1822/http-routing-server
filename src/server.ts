@@ -2,12 +2,15 @@ import { AddressInfo, ListenOptions } from 'net';
 import { Server as HttpServer } from 'http';
 import { Router } from './router';
 import { HttpStatusError } from './error';
+import { IncomingMessageData, ServerOption, ServerResponseData } from "./type";
 
 
 export class Server extends Router {
-  private http = new HttpServer();
+  private http = new HttpServer({
+    maxHeaderSize: this.option.headerMaxLength
+  });
 
-  constructor() {
+  constructor(private option: ServerOption = {}) {
     super();
 
     this.http.on('request', (req: any, res: any) => this.onEvent(req, res));
@@ -20,9 +23,17 @@ export class Server extends Router {
 
       const basicError = error instanceof HttpStatusError ? error : new HttpStatusError(500, 'Server error');
 
-      res.writeHead(basicError.statusCode, { 'content-type': 'application/json' });
+      res.writeHead(basicError.statusCode, {'content-type': 'application/json'});
       res.end(JSON.stringify(basicError.toJSON()));
     });
+  }
+
+  protected async onEvent(req: IncomingMessageData, res: ServerResponseData) {
+    if (req.url && req.url.length > (this.option.urlMaxLength ?? 2048)) {
+      return this.onError(new HttpStatusError(414, 'URL Too Long'), req, res)
+    }
+
+    return super.onEvent(req, res)
   }
 
   get timeout(): number {

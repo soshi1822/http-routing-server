@@ -199,7 +199,7 @@ export class Router extends EventEmitter {
     });
   }
 
-  private onError(error: Error, req: IncomingMessageData, res: ServerResponseData) {
+  protected onError(error: Error, req: IncomingMessageData, res: ServerResponseData) {
     this.listenerCount('error') > 0 ? this.emit('error', error, req, res) : this.emit('error.parent', error, req, res);
   }
 }

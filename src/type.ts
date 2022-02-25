@@ -1,5 +1,10 @@
 import { IncomingMessage, ServerResponse } from 'http';
 
+export interface ServerOption {
+    urlMaxLength?: number;
+    headerMaxLength?: number;
+}
+
 type End = ((cb?: () => void) => void) |
     ((chunk: any, cb?: () => void) => void) |
     ((chunk: any, encoding: BufferEncoding, cb?: () => void) => void)
