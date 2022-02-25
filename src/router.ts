@@ -12,7 +12,7 @@ import {
 
 
 export class Router extends EventEmitter {
-  private waits = new Set<RouterWaits>();
+  private waits = new Set<RouterWaits<any>>();
 
   constructor() {
     super();
@@ -38,47 +38,47 @@ export class Router extends EventEmitter {
     return super.on(event, listener);
   }
 
-  get(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  get<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('GET', match, callback, option);
   }
 
-  head(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  head<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('HEAD', match, callback, option);
   }
 
-  post(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  post<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('POST', match, callback, option);
   }
 
-  put(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  put<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('PUT', match, callback, option);
   }
 
-  delete(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  delete<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('DELETE', match, callback, option);
   }
 
-  connect(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  connect<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('CONNECT', match, callback, option);
   }
 
-  options(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  options<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('OPTIONS', match, callback, option);
   }
 
-  trace(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  trace<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('TRACE', match, callback, option);
   }
 
-  patch(match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+  patch<P extends string | RegExp>(match: P, callback: RequestCallback<P>, option?: RequestOption<P>) {
     return this.request('PATCH', match, callback, option);
   }
 
-  catch(callback: (error: Error, req: IncomingMessageData, res: ServerResponseData) => void) {
+  catch(callback: (error: Error, req: IncomingMessageData<any>, res: ServerResponseData) => void) {
     this.on('error', callback);
   }
 
-  childRouter(match: string | RegExp, router: Router, option?: RequestOption) {
+  childRouter<P extends string | RegExp>(match: P, router: Router, option?: RequestOption<P>) {
     router.on('error.parent', (error, req, res) => this.onError(error, req, res));
     router.on('response', (req, res) => this.emit('response', req, res));
 
@@ -156,15 +156,15 @@ export class Router extends EventEmitter {
     option ??= {};
 
     if (typeof match === 'string') {
-      const params = match.match(/:[a-z0-9_-]+/ig);
+      const params = match.match(/:{?[a-z0-9_-]+}?/ig);
       if (params && params.length > 0) {
 
         option.params = {
           ...(Object.fromEntries(params.map(param => [
-            param.replace(/^:/, ''), /^(.+)$/s
+            param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1'), /^(.+)$/s
           ]))), ...option.params
         };
-        match = new RegExp(`^${quote(match).replace(/\\:([a-z0-9]+)/ig, '(?<$1>[^/]+)')}$`, 's');
+        match = new RegExp(`^${quote(match).replace(/\\:(\\{)?([a-z0-9_-]+)(\\})?/ig, '(?<$2>[^\\/]+)')}$`, 's');
       }
     }
 
