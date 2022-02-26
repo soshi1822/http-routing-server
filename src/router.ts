@@ -7,7 +7,7 @@ import {
   RequestCallback,
   RequestOption,
   RouterWaits,
-  ServerResponseData
+  ServerResponseData,
 } from './type';
 
 
@@ -128,18 +128,7 @@ export class Router extends EventEmitter {
       const matchObj = urlTmp.pathname?.match?.(match);
       if (matchObj) {
         if (typeof option.params === 'object') {
-          let isSuccess = false;
-          for (const key in matchObj.groups) {
-            const matchObjElementValue = matchObj.groups?.[key];
-
-            if (!matchObjElementValue || !option.params[key]?.test(matchObjElementValue)) {
-              isSuccess = false;
-              break;
-            } else {
-              isSuccess = true;
-            }
-          }
-          isSuccess ? emits.push(await this.emitRequest(callback, req, res, { params: matchObj.groups, url })) : null;
+          emits.push(await this.emitRequest(callback, req, res, {params: matchObj.groups, url}));
           continue;
         }
 
@@ -161,10 +150,33 @@ export class Router extends EventEmitter {
 
         option.params = {
           ...(Object.fromEntries(params.map(param => [
-            param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1'), /^(.+)$/s
-          ]))), ...option.params
+            param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1'), /.+?/,
+          ]))), ...option.params,
         };
-        match = new RegExp(`^${quote(match).replace(/\\:(\\{)?([a-z0-9_-]+)(\\})?/ig, '(?<$2>[^\\/]+)')}$`, 's');
+
+        let matchSol = quote(match);
+
+        for (let i = 0; i < params.length; i++) {
+          const param = params[i];
+          const paramName = param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1');
+
+          const paramMatch = option.params?.[paramName];
+
+          if (!paramMatch) {
+            continue;
+          }
+
+          if (paramMatch.ignoreCase) {
+            throw new Error(`The "i" flag is not allowed in option.params. method:${method} match:${match}`);
+          }
+
+          matchSol = matchSol.replace(
+              quote(param),
+              paramMatch.toString().replace(/^\/\^?(.+?)\$?\//, `(?<${paramName}>$1)`),
+          );
+        }
+
+        match = new RegExp(`^${matchSol}$`, 's');
       }
     }
 
