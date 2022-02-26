@@ -16,8 +16,8 @@ const server = new Server();
 // GET: /get
 server.get('get', (req, res) => res.end('OK!'));
 
-// GET: /get/:userName
-server.get('get/:userName', (req, res) => res.end('Welcome to  ' + req.params?.userName));
+// GET: /get/:{userName}
+server.get('get/:{userName}', (req, res) => res.end('Welcome to  ' + req.params.userName), { params: { userName: /\w+/ } });
 
 // POST: /user
 server.post(/^user\/$/, (req, res) => {
