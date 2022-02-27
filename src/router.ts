@@ -1,14 +1,9 @@
 import { EventEmitter } from 'events';
 import { URL } from 'url';
 import { HttpStatusError } from './error';
-import {
-  HttpMethods,
-  IncomingMessageData,
-  RequestCallback,
-  RequestOption,
-  RouterWaits,
-  ServerResponseData,
-} from './type';
+import { IncomingMessageData } from './module/incoming-message';
+import { ServerResponseData } from './module/server-response';
+import { HttpMethods, RequestCallback, RequestOption, RouterWaits } from './type';
 
 
 export class Router extends EventEmitter {
@@ -80,21 +75,64 @@ export class Router extends EventEmitter {
 
   childRouter<P extends string | RegExp>(match: P, router: Router, option?: RequestOption<P>) {
     router.on('error.parent', (error, req, res) => this.onError(error, req, res));
-    router.on('response', (req, res) => this.emit('response', req, res));
 
     return this.request('Router', match, (req, res) => router.onEvent(req, res), option);
   }
 
   protected async onEvent(req: IncomingMessageData, res: ServerResponseData) {
-    res._end ??= res.end;
-    res.end = (...args: [any?, any?, any?]) => {
-      res._end(...args);
-      this.emit('response', req, res);
-      return res;
-    };
+    res.on('close', () => this.emit('response', req, res));
 
-    this.requestRun(req, res)
-      .catch(error => this.onError(error, req, res));
+    await this.requestRun(req, res)
+        .catch(error => this.onError(error, req, res));
+  }
+
+  protected onError(error: Error, req: IncomingMessageData, res: ServerResponseData) {
+    this.listenerCount('error') > 0 ?
+        this.emit('error', error, req, res) :
+        this.emit('error.parent', error, req, res);
+  }
+
+  private request(method: HttpMethods, match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
+    option ??= {};
+
+    if (typeof match === 'string') {
+      const params = match.match(/:{?[a-z0-9_-]+}?/ig);
+      if (params && params.length > 0) {
+
+        option.params = {
+          ...(Object.fromEntries(params.map(param => [
+            param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1'), /.+?/
+          ]))), ...option.params
+        };
+
+        let matchSol = quote(match);
+
+        for (let i = 0; i < params.length; i++) {
+          const param = params[i];
+          const paramName = param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1');
+
+          const paramMatch = option.params?.[paramName];
+
+          if (!paramMatch) {
+            continue;
+          }
+
+          if (paramMatch.ignoreCase) {
+            throw new Error(`The "i" flag is not allowed in option.params. method:${method} match:${match}`);
+          }
+
+          matchSol = matchSol.replace(
+              quote(param),
+              paramMatch.toString().replace(/^\/\^?(.+?)\$?\//, `(?<${paramName}>$1)`)
+          );
+        }
+
+        match = new RegExp(`^${matchSol}$`, 's');
+      }
+    }
+
+
+    this.waits.add({ method, match, callback, option });
   }
 
   private async requestRun(req: IncomingMessageData, res: ServerResponseData) {
@@ -141,78 +179,16 @@ export class Router extends EventEmitter {
     }
   }
 
-  private request(method: HttpMethods, match: string | RegExp, callback: RequestCallback, option?: RequestOption) {
-    option ??= {};
+  private async emitRequest(callback: RequestCallback, req: IncomingMessageData, res: ServerResponseData, reqAddOption: { params?: { [key: string]: string }, url: URL }) {
+    req.params = { ...req.params, ...reqAddOption?.params };
 
-    if (typeof match === 'string') {
-      const params = match.match(/:{?[a-z0-9_-]+}?/ig);
-      if (params && params.length > 0) {
+    const call = callback(req, res);
 
-        option.params = {
-          ...(Object.fromEntries(params.map(param => [
-            param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1'), /.+?/,
-          ]))), ...option.params,
-        };
-
-        let matchSol = quote(match);
-
-        for (let i = 0; i < params.length; i++) {
-          const param = params[i];
-          const paramName = param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1');
-
-          const paramMatch = option.params?.[paramName];
-
-          if (!paramMatch) {
-            continue;
-          }
-
-          if (paramMatch.ignoreCase) {
-            throw new Error(`The "i" flag is not allowed in option.params. method:${method} match:${match}`);
-          }
-
-          matchSol = matchSol.replace(
-              quote(param),
-              paramMatch.toString().replace(/^\/\^?(.+?)\$?\//, `(?<${paramName}>$1)`),
-          );
-        }
-
-        match = new RegExp(`^${matchSol}$`, 's');
-      }
+    if (!(call instanceof Promise)) {
+      return;
     }
 
-
-    this.waits.add({ method, match, callback, option });
-  }
-
-  private async emitRequest(callback: RequestCallback, req: IncomingMessageData, res: ServerResponseData, reqAddOption: { params?: { [key: string]: string }, url: URL }) {
-    return new Promise((resolve, reject) => {
-
-      req.params = { ...req.params, ...reqAddOption?.params };
-      req.query = reqAddOption.url.searchParams;
-      req.cookies = new Map(req.headers.cookie?.split(/;\s+?/).map(v => v.split('=').map(t => t.trim())) as [string, string][] ?? []);
-
-      if (!req.text && !req.json) {
-        res.json = (data, isEnd) => responseJson(res, data, isEnd);
-
-        const bodyChunk: Buffer[] = [];
-        req.on('data', chunk => bodyChunk.push(Buffer.from(chunk)));
-        req.on('end', () => {
-          const body = Buffer.concat(bodyChunk);
-
-
-          req.text = () => body.toString();
-          req.json = () => JSON.parse(req.text() ?? '');
-
-          (async () => callback(req, res))().then(() => resolve(undefined), error => reject(error));
-        });
-      } else {
-        (async () => callback(req, res))().then(() => resolve(undefined), error => reject(error));
-      }
-    });
-  }
-
-  protected onError(error: Error, req: IncomingMessageData, res: ServerResponseData) {
-    this.listenerCount('error') > 0 ? this.emit('error', error, req, res) : this.emit('error.parent', error, req, res);
+    return call.then(() => undefined);
   }
 }
 
@@ -222,13 +198,4 @@ function quote(str: string) {
 
 function counter(str: string, seq: string | RegExp) {
   return str.split(seq).length - 1;
-}
-
-function responseJson(res: ServerResponseData, data: object, isEnd = true) {
-  res.setHeader('content-type', 'application/json');
-  res.write(JSON.stringify(data));
-
-  if (isEnd) {
-    res.end();
-  }
 }
