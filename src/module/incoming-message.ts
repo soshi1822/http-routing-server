@@ -25,7 +25,7 @@ export class IncomingMessageData<P = any> extends IncomingMessage {
     }
 
     get query(): URLSearchParams {
-        return new URL(this.url ?? '').searchParams;
+        return new URL(this.url ?? '', 'http://127.0.0.1').searchParams;
     }
 
     async json<T>() {
