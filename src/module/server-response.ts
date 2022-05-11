@@ -11,7 +11,7 @@ export class ServerResponseData extends ServerResponse {
         this.on('close', () => this.timeline.response = new Date());
     }
 
-    json<T extends object>(data: T, status = 200, isEnd = true) {
+    json<T extends object>(data: T, status = this.statusCode ?? 200, isEnd = true) {
         this.writeHead(status, { 'content-type': 'application/json' });
         this.write(JSON.stringify(data));
 
