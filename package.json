@@ -6,12 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "prepublishOnly": "npx tsc",
-    "publish:prod": "npm publish"
+    "publish:prod": "npm publish --access=public"
   },
   "keywords": [],
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/soshi1822"
-  },
   "private": false,
   "author": "soshi1822 <soshi1822@gmail.com>",
   "license": "MIT",
