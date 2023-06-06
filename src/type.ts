@@ -27,7 +27,7 @@ export type RouteingParams<P> = P extends string ?
 export type RequestCallback<P = any, T = any> = (req: IncomingMessageData<P>, res: ServerResponseData) => T | Promise<T>;
 
 export interface RequestOption<P = any> {
-  params?: Partial<{ [key in keyof RouteingParams<P> | string]: RegExp }>;
+  params?: { [key in keyof RouteingParams<P> | string]?: RegExp };
 }
 
 export interface RouterWaits<P> {

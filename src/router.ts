@@ -102,7 +102,9 @@ export class Router extends EventEmitter {
         option.params = {
           ...(Object.fromEntries(params.map(param => [
             param.replace(/^:{?([a-z0-9_-]+)}?$/i, '$1'), /.+?/
-          ]))), ...option.params
+          ]))),
+          id: /^\d+$/,
+          ...option.params
         };
 
         let matchSol = quote(match);
