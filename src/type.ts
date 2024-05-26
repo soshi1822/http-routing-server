@@ -4,6 +4,7 @@ import { ServerResponseData } from './module/server-response';
 export interface ServerOption {
   urlMaxLength?: number;
   headerMaxLength?: number;
+  responseAutoEncoding?: boolean;
 }
 
 export type HttpMethods =

@@ -11,7 +11,7 @@ export class Server extends Router {
   private http = new HttpServer({
     maxHeaderSize: this.option.headerMaxLength,
     IncomingMessage: IncomingMessageData,
-    ServerResponse: ServerResponseData
+    ServerResponse: ServerResponseData as any
   });
 
   constructor(private option: ServerOption = {}) {
@@ -36,8 +36,12 @@ export class Server extends Router {
       return this.onError(new HttpStatusError(414, 'URL Too Long'), req, res);
     }
 
+    if (this.option.responseAutoEncoding !== false) {
+      res.enableContentEncoding();
+    }
+
     return new Promise<void>((resolve, reject) =>
-        req.once('end', () => super.onEvent(req, res).then(resolve, reject))
+      req.once('end', () => super.onEvent(req, res).then(resolve, reject))
     );
   }
 
