@@ -140,6 +140,10 @@ export class Router extends EventEmitter {
   private async requestRun(req: IncomingMessageData, res: ServerResponseData) {
     const url = new URL(req.routeUrl ?? req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
     const emits: any[] = [];
+    const routers: [RequestCallback, IncomingMessageData, ServerResponseData, {
+      params?: { [key: string]: string },
+      url: URL
+    }][] = [];
 
     for (const { method, match, callback, option } of this.waits) {
       const urlTmp = {
@@ -160,7 +164,11 @@ export class Router extends EventEmitter {
 
       if (typeof match === 'string') {
         if (match === urlTmp.pathname) {
-          emits.push(await this.emitRequest(callback, req, res, { url }));
+          if (method === 'Router') {
+            routers.push([callback, req, res, { url }]);
+          } else {
+            emits.push(await this.emitRequest(callback, req, res, { url }));
+          }
         }
         continue;
       }
@@ -168,7 +176,7 @@ export class Router extends EventEmitter {
       const matchObj = urlTmp.pathname?.match?.(match);
       if (matchObj) {
         if (typeof option.params === 'object') {
-          emits.push(await this.emitRequest(callback, req, res, {params: matchObj.groups, url}));
+          emits.push(await this.emitRequest(callback, req, res, { params: matchObj.groups, url }));
           continue;
         }
 
@@ -176,6 +184,12 @@ export class Router extends EventEmitter {
       }
     }
 
+
+    if (emits.length === 0 && routers.length > 0) {
+      for (const [callback, req, res, option] of routers) {
+        emits.push(await this.emitRequest(callback, req, res, option));
+      }
+    }
     if (emits.length === 0) {
       throw new HttpStatusError(404, 'Not Found');
     }
